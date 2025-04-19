@@ -1,0 +1,154 @@
+[gd_scene load_steps=7 format=3 uid="uid://baqy28yk7hja3"]
+
+[ext_resource type="Texture2D" uid="uid://cgdlvalbc253o" path="res://assets/sprites/agent.png" id="1_6lx6a"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="2_yxgvm"]
+
+[sub_resource type="GDScript" id="GDScript_5yl1x"]
+script/source = "extends Node2D
+"
+
+[sub_resource type="GDScript" id="GDScript_2ntds"]
+script/source = "extends Node2D
+
+@export var max_speed = 200
+@export var max_force = 5.0
+@export var mass = 1.0
+@export var wheelbase = 70.0  # Distance between front and rear wheels
+@export var steering_angle = 40.0  # Maximum steering angle in degrees
+@onready var target: Sprite2D = $\"../Target\"
+
+var velocity = Vector2.ZERO
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"set_Target\"):
+		target.global_position = get_global_mouse_position()
+
+func _physics_process(delta: float) -> void:
+	var desired_direction = seek(target.global_position)
+	apply_steering(desired_direction, delta)
+	
+func seek(target_position: Vector2) -> Vector2:
+	var to_target = global_position.direction_to(target_position)
+	return to_target
+
+func apply_steering(desired_direction: Vector2, delta: float) -> void:
+	var heading = transform.x
+	# Calculate the angle between current heading and desired direction
+	var angle_to_target = heading.angle_to(desired_direction)
+	
+	# Limit the steering angle based on the maximum allowed
+	var max_angle_change = deg_to_rad(steering_angle) * delta
+	var steering_angle_current = clamp(angle_to_target, -max_angle_change, max_angle_change)
+	
+	# Update heading based on steering angle
+	heading = heading.rotated(steering_angle_current)
+	
+	# Calculate acceleration based on heading
+	var acceleration = heading * max_force / mass
+	
+	# Apply acceleration to velocity
+	velocity += acceleration * delta
+	velocity = velocity.limit_length(max_speed)
+	
+	position += velocity * delta
+	rotation = heading.angle()
+"
+
+[sub_resource type="GDScript" id="GDScript_6jnqm"]
+script/source = "extends Node2D
+
+@export var wheelbase := 70.0        # Distance between front/rear wheels
+@export var max_steer_angle := 30.0  # Maximum steering angle in degrees
+@export var max_speed := 400.0       # Maximum movement speed
+@export var engine_power := 200.0    # Acceleration force
+
+var velocity := Vector2.ZERO
+var steer_angle := 0.0
+
+@onready var target: Sprite2D = $\"../Target\"
+
+func _physics_process(delta):
+	var target_position = target.global_position  # Replace with your target
+	var target_dir = global_position.direction_to(target_position)
+	
+	# Calculate steering angle (clamped to max)
+	var target_angle = target_dir.angle()
+	var angle_diff = wrapf(target_angle - rotation, -PI, PI)
+	steer_angle = clamp(angle_diff, deg_to_rad(-max_steer_angle), deg_to_rad(max_steer_angle))
+	
+	# Calculate wheel positions
+	var rear_wheel = position - transform.x * wheelbase/2
+	var front_wheel = position + transform.x * wheelbase/2
+	
+	# Update wheel positions based on steering
+	rear_wheel += velocity * delta
+	front_wheel += velocity.rotated(steer_angle) * delta
+	
+	# Calculate new direction
+	var new_heading = rear_wheel.direction_to(front_wheel)
+	
+	# Update rotation and velocity
+	rotation = new_heading.angle()
+	velocity = new_heading * clamp(velocity.length() + engine_power * delta, 0, max_speed)
+	
+	# Apply movement
+	position += velocity * delta
+"
+
+[sub_resource type="GDScript" id="GDScript_w0dqo"]
+script/source = "extends Node2D
+
+@export var max_speed := 200.0
+@export var acceleration := 100.0
+@export var min_turning_radius := 10.0
+@export var max_turning_radius := 20.0
+@export var debug_draw := true
+@export var debug_color := Color.GREEN
+
+var velocity := Vector2.ZERO
+
+@onready var target: Sprite2D = $\"../Target\"
+
+func _physics_process(delta: float) -> void:
+	pass
+"
+
+[node name="UnitMovementTest" type="Node2D"]
+script = SubResource("GDScript_5yl1x")
+
+[node name="Car" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_2ntds")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car2" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_6jnqm")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car2"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car3" type="Node2D" parent="."]
+position = Vector2(489, 359)
+script = SubResource("GDScript_w0dqo")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car3"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Target" type="Sprite2D" parent="."]
+position = Vector2(213, 191)
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("2_yxgvm")

@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://dkin5n861t0gb"]
+
+[ext_resource type="Script" path="res://assets/units/unit.gd" id="1_rx1sw"]
+[ext_resource type="Texture2D" uid="uid://cgdlvalbc253o" path="res://assets/sprites/agent.png" id="2_hyph0"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="3_olp65"]
+
+[node name="Unit" type="Node2D"]
+script = ExtResource("1_rx1sw")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("2_hyph0")
+
+[node name="DebugFuturePos" type="Sprite2D" parent="."]
+top_level = true
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("3_olp65")
+
+[node name="DebugPath" type="Line2D" parent="."]
+top_level = true
+width = 5.0
+default_color = Color(0, 1, 0, 1)

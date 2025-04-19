@@ -1,0 +1,21 @@
+[gd_scene load_steps=5 format=3 uid="uid://dehtkuygci2gl"]
+
+[ext_resource type="Script" path="res://pathfinding/pathfinding.gd" id="1_0sgrp"]
+[ext_resource type="Script" path="res://game.gd" id="1_q2dv7"]
+[ext_resource type="PackedScene" uid="uid://dkin5n861t0gb" path="res://units/unit.tscn" id="2_af3wk"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="4_0vhpe"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_q2dv7")
+
+[node name="Astar" type="Node2D" parent="."]
+script = ExtResource("1_0sgrp")
+grid_size = Vector2i(40, 40)
+
+[node name="Unit" parent="." instance=ExtResource("2_af3wk")]
+position = Vector2(355, 222)
+
+[node name="Target" type="Sprite2D" parent="."]
+position = Vector2(231, 559)
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("4_0vhpe")

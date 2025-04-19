@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3 uid="uid://baqy28yk7hja3"]
+
+[sub_resource type="GDScript" id="GDScript_5yl1x"]
+script/source = "extends Node2D
+
+@export var max_speed: float = 200.0
+@export var max_steering_force: float = 50.0
+@export var max_acceleration: float = 50.0
+@export var mass: float = 2.0
+
+@onready var car: Node2D = $Car
+@onready var target_pos: Vector2 = car.global_position
+
+var velocity: Vector2 = Vector2()
+var slowing_radius: float = 200
+
+func _physics_process(delta: float) -> void:
+	var distance = global_position.distance_to(target_pos)
+	var to_target = global_position.direction_to(target_pos)
+	
+	var desired_speed = max_speed
+	if distance > slowing_radius:
+		desired_speed = distance / slowing_radius
+		
+	var desired_velocity = to_target * desired_speed
+	var steering = desired_velocity - velocity
+	var acceleration = steering.limit_length(max_steering_force) / mass
+	velocity = (velocity + acceleration).limit_length(max_speed)
+	
+	position += velocity * delta
+			
+	
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action(\"set_Target\"):
+		target_pos = get_global_mouse_position()
+"
+
+[node name="UnitMovementTest" type="Node2D"]
+script = SubResource("GDScript_5yl1x")
+
+[node name="Car" type="Node2D" parent="."]

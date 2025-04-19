@@ -1,0 +1,61 @@
+[gd_scene load_steps=5 format=3 uid="uid://dkin5n861t0gb"]
+
+[ext_resource type="Script" path="res://units/unit.gd" id="1_rx1sw"]
+[ext_resource type="Texture2D" uid="uid://cgdlvalbc253o" path="res://assets/sprites/agent.png" id="2_hyph0"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="3_olp65"]
+[ext_resource type="Texture2D" uid="uid://rxocbe0aumj7" path="res://assets/sprites/circle3.png" id="4_6hjqw"]
+
+[node name="Unit" type="Node2D"]
+script = ExtResource("1_rx1sw")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("2_hyph0")
+
+[node name="Debug" type="Node" parent="."]
+
+[node name="FuturePos" type="Sprite2D" parent="Debug"]
+top_level = true
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("3_olp65")
+
+[node name="ProjectedPoint" type="Sprite2D" parent="Debug"]
+top_level = true
+z_index = 1
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("4_6hjqw")
+
+[node name="OffsetProjected" type="Sprite2D" parent="Debug"]
+self_modulate = Color(1, 1, 1, 0.521569)
+top_level = true
+z_index = 1
+position = Vector2(52, 24)
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("4_6hjqw")
+
+[node name="Path" type="Line2D" parent="Debug"]
+visible = false
+top_level = true
+width = 5.0
+default_color = Color(0, 1, 0, 1)
+
+[node name="FutureProjectedDist" type="Label" parent="Debug"]
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Future/projected distance:"
+
+[node name="PointOffset" type="Label" parent="Debug"]
+offset_left = 1.0
+offset_top = 27.0
+offset_right = 106.0
+offset_bottom = 50.0
+text = "Closest offset"
+
+[node name="Speed" type="Label" parent="Debug"]
+offset_left = 1.0
+offset_top = 54.0
+offset_right = 106.0
+offset_bottom = 77.0
+text = "Speed
+"

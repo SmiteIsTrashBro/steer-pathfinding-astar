@@ -1,0 +1,226 @@
+[gd_scene load_steps=8 format=3 uid="uid://baqy28yk7hja3"]
+
+[ext_resource type="Texture2D" uid="uid://cgdlvalbc253o" path="res://assets/sprites/agent.png" id="1_6lx6a"]
+[ext_resource type="Texture2D" uid="uid://7lpsbffuqium" path="res://assets/sprites/cars.png" id="2_p8f6g"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="2_yxgvm"]
+
+[sub_resource type="GDScript" id="GDScript_5yl1x"]
+script/source = "extends Node2D
+"
+
+[sub_resource type="GDScript" id="GDScript_2ntds"]
+script/source = "extends Node2D
+
+@export var max_speed = 200
+@export var max_force = 5.0
+@export var mass = 1.0
+@export var wheelbase = 70.0  # Distance between front and rear wheels
+@export var steering_angle = 40.0  # Maximum steering angle in degrees
+@onready var target: Sprite2D = $\"../Target\"
+
+var velocity = Vector2.ZERO
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"set_Target\"):
+		target.global_position = get_global_mouse_position()
+
+func _physics_process(delta: float) -> void:
+	var desired_direction = seek(target.global_position)
+	apply_steering(desired_direction, delta)
+	
+func seek(target_position: Vector2) -> Vector2:
+	var to_target = global_position.direction_to(target_position)
+	return to_target
+
+func apply_steering(desired_direction: Vector2, delta: float) -> void:
+	var heading = transform.x
+	# Calculate the angle between current heading and desired direction
+	var angle_to_target = heading.angle_to(desired_direction)
+	
+	# Limit the steering angle based on the maximum allowed
+	var max_angle_change = deg_to_rad(steering_angle) * delta
+	var steering_angle_current = clamp(angle_to_target, -max_angle_change, max_angle_change)
+	
+	# Update heading based on steering angle
+	heading = heading.rotated(steering_angle_current)
+	
+	# Calculate acceleration based on heading
+	var acceleration = heading * max_force / mass
+	
+	# Apply acceleration to velocity
+	velocity += acceleration * delta
+	velocity = velocity.limit_length(max_speed)
+	
+	position += velocity * delta
+	rotation = heading.angle()
+"
+
+[sub_resource type="GDScript" id="GDScript_6jnqm"]
+script/source = "extends Node2D
+
+@export var wheelbase := 70.0        # Distance between front/rear wheels
+@export var max_steer_angle := 30.0  # Maximum steering angle in degrees
+@export var max_speed := 400.0       # Maximum movement speed
+@export var engine_power := 200.0    # Acceleration force
+
+var velocity := Vector2.ZERO
+var steer_angle := 0.0
+
+@onready var target: Sprite2D = $\"../Target\"
+
+func _physics_process(delta):
+	var target_position = target.global_position  # Replace with your target
+	var target_dir = global_position.direction_to(target_position)
+	
+	# Calculate steering angle (clamped to max)
+	var target_angle = target_dir.angle()
+	var angle_diff = wrapf(target_angle - rotation, -PI, PI)
+	steer_angle = clamp(angle_diff, deg_to_rad(-max_steer_angle), deg_to_rad(max_steer_angle))
+	
+	# Calculate wheel positions
+	var rear_wheel = position - transform.x * wheelbase/2
+	var front_wheel = position + transform.x * wheelbase/2
+	
+	# Update wheel positions based on steering
+	rear_wheel += velocity * delta
+	front_wheel += velocity.rotated(steer_angle) * delta
+	
+	# Calculate new direction
+	var new_heading = rear_wheel.direction_to(front_wheel)
+	
+	# Update rotation and velocity
+	rotation = new_heading.angle()
+	velocity = new_heading * clamp(velocity.length() + engine_power * delta, 0, max_speed)
+	
+	# Apply movement
+	position += velocity * delta
+"
+
+[sub_resource type="GDScript" id="GDScript_w0dqo"]
+script/source = "extends Node2D
+
+@export var wheelbase: float = 10
+@export var max_steer: float = deg_to_rad(30)  # 30 degrees 
+@export var max_speed: float = 300
+@export var acceleration: float = 150
+@export var speed_radius_factor = 0.3
+
+@export var show_turning_radius: bool = true
+@export var turning_radius_color: Color = Color.GREEN
+
+var velocity = Vector2()
+var current_turning_radius: float = 0.0
+var current_estimated_radius: float = 0.0
+var steer_angle: float = 0.0
+
+@onready var label: Label = $\"../Label\"
+@onready var target: Sprite2D = $\"../Target\"
+
+func _physics_process(delta: float) -> void:
+	#if Input.is_action_pressed(\"ui_up\"):
+		#velocity += transform.x * acceleration * delta
+	#elif Input.is_action_pressed(\"ui_down\"):
+		#velocity -= transform.x * acceleration * delta
+	#else:
+		#velocity = velocity.move_toward(Vector2.ZERO, acceleration * delta)
+		
+	var to_target = (target.global_position - global_position).normalized()
+	var dot_product = transform.x.dot(to_target)
+	# Normalizing between 0 and 1
+	var normalized_dot_product  = (dot_product + 1.0) / 2.0
+	var sharpness = 3.0
+	var target_speed = max_speed * max(0.2, pow(normalized_dot_product, sharpness))
+	
+	velocity = velocity.move_toward(transform.x * target_speed, acceleration * delta)
+	velocity = velocity.limit_length(max_speed)
+	
+	# Convert steering input to radians and clamp to max steering angle
+	var angle_rad = atan2(transform.x.cross(to_target), dot_product)
+	var effective_steer = clamp(angle_rad, -max_steer, max_steer)
+
+	# Calculate vehicle turning radius based on wheelbase, steering angle and speed
+	var current_speed = velocity.length()
+	var base_turning_radius = wheelbase / tan(abs(effective_steer))
+	var dynamic_turning_radius = base_turning_radius + speed_radius_factor * current_speed
+
+	var angular_velocity = (current_speed / dynamic_turning_radius) * sin(angle_rad)
+	rotation += angular_velocity * delta
+	
+	velocity = transform.x * velocity.length()
+	position += velocity * delta
+	
+	# debug
+	current_turning_radius = dynamic_turning_radius
+	#current_estimated_radius = estimated_radius
+	label.text = (
+		\"speed: %.2f \\n\" % velocity.length() + 
+		\"angular velocity: %.2f \\n\" % angular_velocity +
+		\"turning radius: %.2f \\n\" % current_turning_radius +
+		\"target_speed: %.2f \\n\" % target_speed +
+		\"steering_input: %.2f\" % steering_input
+	)
+	
+	# Force redraw to update turning radius visualization
+	queue_redraw()
+
+func _draw() -> void:
+	draw_circle(Vector2(0, -current_turning_radius), current_turning_radius, Color.GREEN, false)
+	draw_circle(Vector2(0, current_turning_radius), current_turning_radius, Color.GREEN, false)
+	draw_circle(Vector2(0, -current_turning_radius), 4.0, Color.RED)
+	
+	
+	draw_circle(Vector2(0, current_estimated_radius), abs(current_estimated_radius), Color.YELLOW, false)
+"
+
+[node name="UnitMovementTest" type="Node2D"]
+script = SubResource("GDScript_5yl1x")
+
+[node name="Car" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_2ntds")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car2" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_6jnqm")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car2"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car3" type="Node2D" parent="."]
+position = Vector2(489, 359)
+script = SubResource("GDScript_w0dqo")
+wheelbase = null
+max_steer = null
+max_speed = null
+acceleration = null
+speed_radius_factor = null
+show_turning_radius = null
+turning_radius_color = null
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car3"]
+rotation = 1.5708
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("2_p8f6g")
+region_enabled = true
+region_rect = Rect2(20, 8, 216, 456)
+
+[node name="Target" type="Sprite2D" parent="."]
+position = Vector2(213, 191)
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("2_yxgvm")
+
+[node name="Label" type="Label" parent="."]
+offset_right = 40.0
+offset_bottom = 23.0

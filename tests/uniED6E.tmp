@@ -1,0 +1,208 @@
+[gd_scene load_steps=7 format=3 uid="uid://baqy28yk7hja3"]
+
+[ext_resource type="Texture2D" uid="uid://cgdlvalbc253o" path="res://assets/sprites/agent.png" id="1_6lx6a"]
+[ext_resource type="Texture2D" uid="uid://xrmqm6m3c3xe" path="res://assets/sprites/circle1.png" id="2_yxgvm"]
+
+[sub_resource type="GDScript" id="GDScript_5yl1x"]
+script/source = "extends Node2D
+"
+
+[sub_resource type="GDScript" id="GDScript_2ntds"]
+script/source = "extends Node2D
+
+@export var max_speed = 200
+@export var max_force = 5.0
+@export var mass = 1.0
+@export var wheelbase = 70.0  # Distance between front and rear wheels
+@export var steering_angle = 40.0  # Maximum steering angle in degrees
+@onready var target: Sprite2D = $\"../Target\"
+
+var velocity = Vector2.ZERO
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"set_Target\"):
+		target.global_position = get_global_mouse_position()
+
+func _physics_process(delta: float) -> void:
+	var desired_direction = seek(target.global_position)
+	apply_steering(desired_direction, delta)
+	
+func seek(target_position: Vector2) -> Vector2:
+	var to_target = global_position.direction_to(target_position)
+	return to_target
+
+func apply_steering(desired_direction: Vector2, delta: float) -> void:
+	var heading = transform.x
+	# Calculate the angle between current heading and desired direction
+	var angle_to_target = heading.angle_to(desired_direction)
+	
+	# Limit the steering angle based on the maximum allowed
+	var max_angle_change = deg_to_rad(steering_angle) * delta
+	var steering_angle_current = clamp(angle_to_target, -max_angle_change, max_angle_change)
+	
+	# Update heading based on steering angle
+	heading = heading.rotated(steering_angle_current)
+	
+	# Calculate acceleration based on heading
+	var acceleration = heading * max_force / mass
+	
+	# Apply acceleration to velocity
+	velocity += acceleration * delta
+	velocity = velocity.limit_length(max_speed)
+	
+	position += velocity * delta
+	rotation = heading.angle()
+"
+
+[sub_resource type="GDScript" id="GDScript_6jnqm"]
+script/source = "extends Node2D
+
+@export var wheelbase := 70.0        # Distance between front/rear wheels
+@export var max_steer_angle := 30.0  # Maximum steering angle in degrees
+@export var max_speed := 400.0       # Maximum movement speed
+@export var engine_power := 200.0    # Acceleration force
+
+var velocity := Vector2.ZERO
+var steer_angle := 0.0
+
+@onready var target: Sprite2D = $\"../Target\"
+
+func _physics_process(delta):
+	var target_position = target.global_position  # Replace with your target
+	var target_dir = global_position.direction_to(target_position)
+	
+	# Calculate steering angle (clamped to max)
+	var target_angle = target_dir.angle()
+	var angle_diff = wrapf(target_angle - rotation, -PI, PI)
+	steer_angle = clamp(angle_diff, deg_to_rad(-max_steer_angle), deg_to_rad(max_steer_angle))
+	
+	# Calculate wheel positions
+	var rear_wheel = position - transform.x * wheelbase/2
+	var front_wheel = position + transform.x * wheelbase/2
+	
+	# Update wheel positions based on steering
+	rear_wheel += velocity * delta
+	front_wheel += velocity.rotated(steer_angle) * delta
+	
+	# Calculate new direction
+	var new_heading = rear_wheel.direction_to(front_wheel)
+	
+	# Update rotation and velocity
+	rotation = new_heading.angle()
+	velocity = new_heading * clamp(velocity.length() + engine_power * delta, 0, max_speed)
+	
+	# Apply movement
+	position += velocity * delta
+"
+
+[sub_resource type="GDScript" id="GDScript_w0dqo"]
+script/source = "extends Node2D
+
+@export var mass := 2.0
+var max_speed = 200
+var min_speed = 10  # Minimum speed when turning sharply
+var rotation_speed = 3
+
+@onready var target: Sprite2D = $\"../Target\"
+@onready var label: Label = $\"../Label\"
+
+
+var velocity := Vector2.ZERO
+
+func _physics_process(delta):
+    # Calculate direction to target
+    var target_direction = global_position.direction_to(target.global_position)
+    
+    # Calculate how aligned we are with target direction (1 = perfectly aligned, -1 = opposite)
+    var alignment = transform.x.dot(target_direction)
+    
+    # Motorcycle physics parameters
+    var max_turning_speed: float = 100.0  # Speed when making sharp turns
+    var alignment_threshold: float = 0.7  # When to start slowing down for turns
+    var braking_factor: float = 0.5      # How aggressively to brake when turning
+    var acceleration_factor: float = 4.0  # How quickly to accelerate after turn
+    
+    # Determine speed based on alignment and current velocity
+    var target_speed = max_speed
+    
+    if alignment < alignment_threshold:
+        # The sharper the turn, the more we slow down
+        var turn_sharpness = 1.0 - (alignment + 1.0) / 2.0  # 0 (straight) to 1 (sharp turn)
+         target_speed = lerpf(max_speed, max_turning_speed, turn_sharpness)
+    
+    # Smooth speed adjustment
+    var current_speed = velocity.length()
+    var speed_difference = target_speed - current_speed
+    
+    # Apply different acceleration/deceleration rates
+    if speed_difference > 0:
+        # Accelerate more gently when coming out of turns
+        current_speed += min(speed_difference, acceleration_factor * delta * (alignment + 1.0))
+    else:
+        # Brake more aggressively when entering turns
+        current_speed += max(speed_difference, -braking_factor * delta * (1.0 - alignment))
+    
+    # Rotate toward target with speed-dependent turning rate
+    var turn_rate = rotation_speed * delta
+    
+    # Make turning sharper at lower speeds (like real motorcycles)
+    if current_speed < max_speed * 0.5:
+        turn_rate *= 1.5
+    
+    rotation = lerp_angle(rotation, target_direction.angle(), turn_rate)
+    
+    # Update velocity - maintain momentum but adjust direction
+    var desired_velocity = transform.x * current_speed
+    velocity = velocity.lerp(desired_velocity, 0.1).limit_length(max_speed)
+    
+    # Move
+    position += velocity * delta
+    
+    # Debug info
+    label.text = \"speed: %.2f / alignment: %.2f / turn rate: %.2f\" % [current_speed, alignment, turn_rate]
+"
+
+[node name="UnitMovementTest" type="Node2D"]
+script = SubResource("GDScript_5yl1x")
+
+[node name="Car" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_2ntds")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car2" type="Node2D" parent="."]
+visible = false
+position = Vector2(489, 359)
+script = SubResource("GDScript_6jnqm")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car2"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Car3" type="Node2D" parent="."]
+position = Vector2(489, 359)
+script = SubResource("GDScript_w0dqo")
+mass = null
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="Car3"]
+rotation = 1.5708
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("1_6lx6a")
+
+[node name="Target" type="Sprite2D" parent="."]
+position = Vector2(213, 191)
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("2_yxgvm")
+
+[node name="Label" type="Label" parent="."]
+offset_right = 40.0
+offset_bottom = 23.0
